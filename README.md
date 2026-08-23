@@ -1,1 +1,1 @@
-# FinVisor
+"# AI Stock Assistant" 
