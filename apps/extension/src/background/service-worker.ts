@@ -1,0 +1,1 @@
+console.log("FinVisor background service worker started.");
