@@ -1,4 +1,6 @@
 import json
+from datetime import datetime, timezone
+from decimal import Decimal
 
 from app.domain.market import (
     Candle,
@@ -71,13 +73,11 @@ def save_snapshot(
                 snapshot.data_version,
                 (
                     snapshot.latest_candle_timestamp.isoformat()
-                    if snapshot.latest_candle_timestamp
+                    if snapshot.latest_candle_timestamp is not None
                     else None
                 ),
                 candles_json,
-                snapshot.latest_candle_timestamp.isoformat()
-                if snapshot.latest_candle_timestamp
-                else "",
+                datetime.now(timezone.utc).isoformat(),
             ),
         )
 
@@ -85,6 +85,49 @@ def save_snapshot(
 
     finally:
         connection.close()
+
+
+def _row_to_snapshot(row) -> MarketDataSnapshot:
+    candle_data = json.loads(row["candles_json"])
+
+    candles = tuple(
+        Candle(
+            identity=CandleIdentity(
+                instrument_id=row["instrument_id"],
+                interval=CandleInterval(row["interval"]),
+                timestamp=datetime.fromisoformat(
+                    item["timestamp"]
+                ),
+            ),
+            open=Decimal(item["open"]),
+            high=Decimal(item["high"]),
+            low=Decimal(item["low"]),
+            close=Decimal(item["close"]),
+            volume=item["volume"],
+            source=item["source"],
+            fetched_at=datetime.fromisoformat(
+                item["fetched_at"]
+            ),
+        )
+        for item in candle_data
+    )
+
+    latest_candle_timestamp = (
+        datetime.fromisoformat(
+            row["latest_candle_timestamp"]
+        )
+        if row["latest_candle_timestamp"] is not None
+        else None
+    )
+
+    return MarketDataSnapshot(
+        instrument_id=row["instrument_id"],
+        interval=CandleInterval(row["interval"]),
+        data_version=row["data_version"],
+        latest_candle_timestamp=latest_candle_timestamp,
+        candles=candles,
+        snapshot_hash=row["snapshot_hash"],
+    )
 
 
 def get_snapshot(
@@ -107,62 +150,45 @@ def get_snapshot(
         if row is None:
             return None
 
-        candle_data = json.loads(
-            row["candles_json"]
-        )
-
-        candles = tuple(
-            Candle(
-                identity=CandleIdentity(
-                    instrument_id=row["instrument_id"],
-                    interval=CandleInterval(row["interval"]),
-                    timestamp=__import__(
-                        "datetime"
-                    ).datetime.fromisoformat(
-                        item["timestamp"]
-                    ),
-                ),
-                open=__import__(
-                    "decimal"
-                ).Decimal(item["open"]),
-                high=__import__(
-                    "decimal"
-                ).Decimal(item["high"]),
-                low=__import__(
-                    "decimal"
-                ).Decimal(item["low"]),
-                close=__import__(
-                    "decimal"
-                ).Decimal(item["close"]),
-                volume=item["volume"],
-                source=item["source"],
-                fetched_at=__import__(
-                    "datetime"
-                ).datetime.fromisoformat(
-                    item["fetched_at"]
-                ),
-            )
-            for item in candle_data
-        )
-
-        from datetime import datetime
-
-        latest_candle_timestamp = (
-            datetime.fromisoformat(
-                row["latest_candle_timestamp"]
-            )
-            if row["latest_candle_timestamp"]
-            else None
-        )
-
-        return MarketDataSnapshot(
-            instrument_id=row["instrument_id"],
-            interval=CandleInterval(row["interval"]),
-            data_version=row["data_version"],
-            latest_candle_timestamp=latest_candle_timestamp,
-            candles=candles,
-            snapshot_hash=row["snapshot_hash"],
-        )
+        return _row_to_snapshot(row)
 
     finally:
         connection.close()
+
+
+def get_latest_snapshot(
+    instrument_id: str,
+    interval: CandleInterval,
+) -> MarketDataSnapshot | None:
+    connection = get_connection()
+
+    try:
+        _ensure_snapshot_table(connection)
+
+        row = connection.execute(
+            """
+            SELECT *
+            FROM market_data_snapshots
+            WHERE
+                instrument_id = ?
+                AND interval = ?
+            ORDER BY
+                data_version DESC,
+                created_at DESC
+            LIMIT 1
+            """,
+            (
+                instrument_id,
+                interval.value,
+            ),
+        ).fetchone()
+
+        if row is None:
+            return None
+
+        return _row_to_snapshot(row)
+
+    finally:
+        connection.close()
+        
+        

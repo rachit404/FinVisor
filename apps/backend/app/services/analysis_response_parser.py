@@ -1,4 +1,5 @@
 import json
+import re
 
 from app.domain.analysis_response import (
     AnalysisAction,
@@ -6,16 +7,98 @@ from app.domain.analysis_response import (
 )
 
 
+def _extract_json(
+    response: str,
+) -> str:
+    cleaned = response.strip()
+
+    if not cleaned:
+        raise ValueError(
+            "AI provider returned an empty response"
+        )
+
+    markdown_match = re.search(
+        r"```(?:json)?\s*(.*?)\s*```",
+        cleaned,
+        re.DOTALL | re.IGNORECASE,
+    )
+
+    if markdown_match:
+        return markdown_match.group(1).strip()
+
+    if cleaned.startswith("{") and cleaned.endswith("}"):
+        return cleaned
+
+    json_start = cleaned.find("{")
+    json_end = cleaned.rfind("}")
+
+    if (
+        json_start != -1
+        and json_end != -1
+        and json_end > json_start
+    ):
+        return cleaned[
+            json_start : json_end + 1
+        ]
+
+    raise ValueError(
+        "AI provider response does not contain valid JSON"
+    )
+
+
 def parse_analysis_response(
     response: str,
 ) -> StructuredAnalysisResponse:
-    data = json.loads(response)
+    json_response = _extract_json(response)
 
-    action = AnalysisAction(data["action"])
+    try:
+        data = json.loads(json_response)
+    except json.JSONDecodeError as exc:
+        raise ValueError(
+            "AI provider returned invalid JSON: "
+            f"{exc.msg}"
+        ) from exc
+
+    if not isinstance(data, dict):
+        raise ValueError(
+            "AI response must be a JSON object"
+        )
+
+    required_fields = {
+        "action",
+        "confidence",
+        "summary",
+        "reasons",
+    }
+
+    missing_fields = (
+        required_fields - data.keys()
+    )
+
+    if missing_fields:
+        raise ValueError(
+            "AI response is missing required fields: "
+            + ", ".join(
+                sorted(missing_fields)
+            )
+        )
+
+    try:
+        action = AnalysisAction(
+            data["action"]
+        )
+    except ValueError as exc:
+        raise ValueError(
+            "action must be one of: "
+            "buy, sell, hold"
+        ) from exc
 
     confidence = data["confidence"]
 
-    if not isinstance(confidence, int):
+    if (
+        not isinstance(confidence, int)
+        or isinstance(confidence, bool)
+    ):
         raise ValueError(
             "confidence must be an integer"
         )
@@ -51,3 +134,5 @@ def parse_analysis_response(
         summary=summary,
         reasons=tuple(reasons),
     )
+    
+    

@@ -5,7 +5,9 @@ from dotenv import load_dotenv
 from app.ai.tokenrouter_provider import TokenRouterAIProvider
 from app.domain.market import CandleInterval
 from app.services.analysis_service import run_analysis
-from app.storage.analysis_repository import get_latest_snapshot
+from app.storage.market_snapshot_repository import (
+    get_latest_snapshot,
+)
 
 
 load_dotenv()
