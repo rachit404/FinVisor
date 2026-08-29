@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "description": "AI-powered stock analysis assistant.",
   "permissions": ["storage", "activeTab"],
-  "host_permissions": ["http://127.0.0.1:5000/*"],
+  "host_permissions": ["http://127.0.0.1:8000/*"],
   "background": {
     "service_worker": "background.js",
     "type": "module"

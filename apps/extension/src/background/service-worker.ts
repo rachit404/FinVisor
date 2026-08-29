@@ -3,7 +3,7 @@ type ApiRequest = {
   context: unknown;
 };
 
-const API_BASE_URL = "http://127.0.0.1:5000";
+const API_BASE_URL = "http://127.0.0.1:8000";
 
 chrome.runtime.onMessage.addListener(
   (message: ApiRequest, _sender, sendResponse) => {
@@ -23,7 +23,9 @@ chrome.runtime.onMessage.addListener(
 
         if (!response.ok) {
           throw new Error(
-            data?.error || `Backend returned HTTP ${response.status}`,
+            data?.detail ||
+              data?.error ||
+              `Backend returned HTTP ${response.status}`,
           );
         }
 
