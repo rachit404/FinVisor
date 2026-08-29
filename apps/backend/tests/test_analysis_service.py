@@ -1,6 +1,8 @@
 from datetime import datetime
 from decimal import Decimal
 
+from app.ai.fake_provider import FakeAIProvider
+from app.domain.analysis_response import AnalysisAction
 from app.domain.market import (
     Candle,
     CandleIdentity,
@@ -13,10 +15,28 @@ from app.storage.database import initialize_database
 from app.storage.market_snapshot_repository import save_snapshot
 
 
-def test_run_analysis_creates_immutable_record():
-    initialize_database()
+class StructuredFakeAIProvider(FakeAIProvider):
+    def generate(
+        self,
+        *,
+        prompt: str,
+        model: str,
+    ) -> str:
+        return """
+        {
+            "action": "buy",
+            "confidence": 72,
+            "summary": "Positive short-term momentum.",
+            "reasons": [
+                "Recent candle closed higher.",
+                "Price remains above the opening level."
+            ]
+        }
+        """
 
-    snapshot = MarketDataSnapshot(
+
+def create_snapshot() -> MarketDataSnapshot:
+    return MarketDataSnapshot(
         instrument_id="TEST:NSE:SBIN:AI",
         interval=CandleInterval.FIVE_MINUTES,
         data_version=7,
@@ -55,27 +75,39 @@ def test_run_analysis_creates_immutable_record():
                 ),
             ),
         ),
-        snapshot_hash="test-ai-snapshot-001",
+        snapshot_hash="test-ai-snapshot-provider-001",
     )
 
+
+def test_run_analysis_uses_structured_response():
+    initialize_database()
+
+    snapshot = create_snapshot()
     save_snapshot(snapshot)
+
+    provider = StructuredFakeAIProvider()
 
     result = run_analysis(
         snapshot_hash=snapshot.snapshot_hash,
         prompt="Analyze this stock.",
         model="test-model",
-        response="The trend is neutral.",
+        provider=provider,
     )
 
     assert result is not None
 
     analysis = result.analysis
+    structured = result.structured_response
 
     assert analysis.snapshot_hash == snapshot.snapshot_hash
     assert analysis.instrument_id == snapshot.instrument_id
     assert analysis.data_version == 7
-    assert analysis.prompt == "Analyze this stock."
-    assert analysis.response == "The trend is neutral."
+
+    assert structured.action == AnalysisAction.BUY
+    assert structured.confidence == 72
+    assert structured.summary == (
+        "Positive short-term momentum."
+    )
 
     restored = get_analysis(
         analysis.analysis_id
@@ -87,11 +119,15 @@ def test_run_analysis_creates_immutable_record():
 def test_run_analysis_returns_none_for_missing_snapshot():
     initialize_database()
 
+    provider = StructuredFakeAIProvider()
+
     result = run_analysis(
         snapshot_hash="missing-snapshot",
         prompt="Analyze this stock.",
         model="test-model",
-        response="This should not be saved.",
+        provider=provider,
     )
 
     assert result is None
+    
+    
