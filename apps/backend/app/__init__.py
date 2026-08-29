@@ -2,6 +2,7 @@ from flask import Flask
 
 from app.api.health.routes import health_bp
 from app.config.settings import settings
+from app.api.context.routes import context_bp
 
 
 def create_app() -> Flask:
@@ -13,5 +14,6 @@ def create_app() -> Flask:
         health_bp,
         url_prefix="/api/health",
     )
+    app.register_blueprint(context_bp)
 
     return app
