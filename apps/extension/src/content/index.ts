@@ -1,7 +1,34 @@
 import { detectPlatform } from "./detectors";
 import { extractGrowwPageContext } from "./platforms/groww";
 import { watchNavigation } from "./navigation";
-import { sendStockContext } from "../shared/api";
+import type { StockPageContext } from "./context";
+
+type StockContextBackendResponse = {
+  success: boolean;
+  data?: unknown;
+  error?: string;
+};
+
+function sendStockContext(
+  context: StockPageContext,
+): Promise<StockContextBackendResponse> {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(
+      {
+        type: "FINVISOR_SEND_STOCK_CONTEXT",
+        context,
+      },
+      (response: StockContextBackendResponse) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+
+        resolve(response);
+      },
+    );
+  });
+}
 
 function detectCurrentPage() {
   const platform = detectPlatform();
@@ -37,5 +64,6 @@ detectCurrentPage();
 
 watchNavigation((url) => {
   console.log("[FinVisor] Navigation detected:", url);
+
   detectCurrentPage();
 });

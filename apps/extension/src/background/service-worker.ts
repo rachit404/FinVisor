@@ -19,7 +19,7 @@ type StoredStockContext = {
 
 type StoredContexts = Record<string, StoredStockContext>;
 
-const API_BASE_URL = "http://127.0.0.1:5000";
+const API_BASE_URL = "http://127.0.0.1:8000";
 
 const STOCK_CONTEXT_STORAGE_KEY = "finvisor_stock_context_by_tab";
 
