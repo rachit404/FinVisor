@@ -1,30 +1,12 @@
 import { getCurrentStockContext } from "../shared/api";
 
-const statusElement = document.querySelector<HTMLParagraphElement>("#status");
+const statusElement = document.querySelector<HTMLDivElement>("#status");
 
-const stockElement = document.querySelector<HTMLElement>("#stock");
+const stockContextElement =
+  document.querySelector<HTMLDivElement>("#stock-context");
 
-const companyNameElement =
-  document.querySelector<HTMLHeadingElement>("#company-name");
-
-const symbolElement = document.querySelector<HTMLSpanElement>("#symbol");
-
-const exchangeElement = document.querySelector<HTMLSpanElement>("#exchange");
-
-const priceElement = document.querySelector<HTMLSpanElement>("#price");
-
-const changeElement = document.querySelector<HTMLSpanElement>("#change");
-
-async function loadCurrentStock(): Promise<void> {
-  if (
-    !statusElement ||
-    !stockElement ||
-    !companyNameElement ||
-    !symbolElement ||
-    !exchangeElement ||
-    !priceElement ||
-    !changeElement
-  ) {
+async function loadStockContext(): Promise<void> {
+  if (!statusElement || !stockContextElement) {
     return;
   }
 
@@ -32,35 +14,47 @@ async function loadCurrentStock(): Promise<void> {
     const response = await getCurrentStockContext();
 
     if (!response.success || !response.context) {
-      statusElement.textContent =
-        response.error ?? "No stock detected on this page.";
+      statusElement.textContent = response.error ?? "No stock context found.";
 
       return;
     }
 
-    const { context } = response;
+    const context = response.context;
 
-    companyNameElement.textContent = context.companyName ?? context.symbol;
+    statusElement.textContent = "Stock context found.";
 
-    symbolElement.textContent = context.symbol;
+    stockContextElement.innerHTML = `
+      <h2>${context.companyName ?? context.symbol}</h2>
 
-    exchangeElement.textContent = context.exchange ?? "Unknown";
+      <p>
+        <strong>Symbol:</strong>
+        ${context.symbol}
+      </p>
 
-    priceElement.textContent =
-      context.price !== null ? `₹${context.price}` : "Unavailable";
+      <p>
+        <strong>Exchange:</strong>
+        ${context.exchange ?? "Unknown"}
+      </p>
 
-    if (context.change !== null && context.changePercent !== null) {
-      changeElement.textContent = `${context.change} (${context.changePercent}%)`;
-    } else {
-      changeElement.textContent = "Unavailable";
-    }
+      <p>
+        <strong>Price:</strong>
+        ${context.price ?? "Unavailable"}
+      </p>
 
-    statusElement.hidden = true;
-    stockElement.hidden = false;
+      <p>
+        <strong>Change:</strong>
+        ${context.change ?? "Unavailable"}
+      </p>
+
+      <p>
+        <strong>Change %:</strong>
+        ${context.changePercent ?? "Unavailable"}
+      </p>
+    `;
   } catch (error) {
     statusElement.textContent =
-      error instanceof Error ? error.message : "Failed to load stock context.";
+      error instanceof Error ? error.message : "Unable to load stock context.";
   }
 }
 
-void loadCurrentStock();
+void loadStockContext();
