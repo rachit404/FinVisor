@@ -1,4 +1,5 @@
 import type { StockPageContext } from "../content/context";
+import type { AnalysisResponse, AnalyzeStockResponse } from "./types";
 
 export type StockContextBackendResponse = {
   success: boolean;
@@ -41,6 +42,25 @@ export function getCurrentStockContext(): Promise<CurrentStockContextResponse> {
         type: "FINVISOR_GET_CURRENT_STOCK_CONTEXT",
       },
       (response: CurrentStockContextResponse) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+
+        resolve(response);
+      },
+    );
+  });
+}
+
+export function analyzeStock(prompt: string): Promise<AnalyzeStockResponse> {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(
+      {
+        type: "FINVISOR_ANALYZE_STOCK",
+        prompt,
+      },
+      (response: AnalyzeStockResponse) => {
         if (chrome.runtime.lastError) {
           reject(new Error(chrome.runtime.lastError.message));
           return;
