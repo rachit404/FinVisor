@@ -5,10 +5,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>FinVisor</title>
     <script type="module" crossorigin src="/assets/popup.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/api-BV33hp-X.js">
   </head>
+
   <body>
-    <h1>FinVisor</h1>
-    <p>Extension is running.</p>
+    <main>
+      <h1>FinVisor</h1>
+
+      <p id="status">Loading current stock...</p>
+
+      <section id="stock" hidden>
+        <h2 id="company-name"></h2>
+
+        <p>
+          <strong>Symbol:</strong>
+          <span id="symbol"></span>
+        </p>
+
+        <p>
+          <strong>Exchange:</strong>
+          <span id="exchange"></span>
+        </p>
+
+        <p>
+          <strong>Price:</strong>
+          <span id="price"></span>
+        </p>
+
+        <p>
+          <strong>Change:</strong>
+          <span id="change"></span>
+        </p>
+      </section>
+    </main>
 
   </body>
 </html>
